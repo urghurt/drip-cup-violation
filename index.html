@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DRIP CUP VIOLATION TRACKER</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <style>
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: #1a1a2e;
+            color: #eee;
+            font-family: 'Segoe UI', sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            padding: 30px 20px 10px;
+            position: relative;
+        }
+
+        .header h1 {
+            font-family: 'Bangers', cursive;
+            font-size: 3.5rem;
+            color: #ff6b6b;
+            text-shadow: 3px 3px 0 #000, -1px -1px 0 #000;
+            letter-spacing: 3px;
+            animation: shake 0.5s ease-in-out infinite alternate;
+        }
+
+        .header .subtitle {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 1.2rem;
+            color: #ffd93d;
+            margin-top: 5px;
+        }
+
+        .rat-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            padding: 8px 20px;
+            border-radius: 50px;
+            margin-top: 15px;
+            font-family: 'Permanent Marker', cursive;
+            font-size: 1rem;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        .rat-badge .rat-emoji {
+            font-size: 1.4rem;
+        }
+
+        .rule-banner {
+            background: linear-gradient(90deg, transparent, rgba(255, 107, 107, 0.2), transparent);
+            text-align: center;
+            padding: 12px;
+            margin: 20px 0;
+            border-top: 1px solid rgba(255, 107, 107, 0.3);
+            border-bottom: 1px solid rgba(255, 107, 107, 0.3);
+            font-size: 0.95rem;
+            color: #ff9a9a;
+        }
+
+        .rule-banner strong { color: #ff6b6b; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: linear-gradient(145deg, #16213e, #1a1a2e);
+            border: 2px solid #2a2a4a;
+            border-radius: 16px;
+            padding: 20px;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card:hover {
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.2);
+        }
+
+        .card.danger {
+            border-color: #ff6b6b;
+            animation: pulse-danger 1s ease-in-out infinite alternate;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .card-name {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 1.4rem;
+            color: #eee;
+        }
+
+        .violation-count {
+            font-family: 'Bangers', cursive;
+            font-size: 2rem;
+            color: #ff6b6b;
+            min-width: 40px;
+            text-align: center;
+        }
+
+        .cup-meter {
+            display: flex;
+            gap: 6px;
+            margin: 10px 0;
+            justify-content: center;
+        }
+
+        .cup {
+            font-size: 1.8rem;
+            filter: grayscale(100%) opacity(0.3);
+            transition: all 0.3s ease;
+        }
+
+        .cup.filled {
+            filter: none;
+            animation: drip 0.5s ease-out;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Bangers', cursive;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            letter-spacing: 1px;
+        }
+
+        .btn:active { transform: scale(0.95); }
+
+        .btn-violate {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+            color: white;
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-violate:hover {
+            box-shadow: 0 6px 20px rgba(255, 107, 107, 0.5);
+        }
+
+        .btn-undo {
+            background: linear-gradient(135deg, #2d3436, #636e72);
+            color: #ddd;
+            max-width: 80px;
+        }
+
+        .btn-undo:hover { background: linear-gradient(135deg, #636e72, #2d3436); }
+
+        .status-text {
+            text-align: center;
+            font-size: 0.8rem;
+            color: #888;
+            margin-top: 8px;
+            min-height: 20px;
+        }
+
+        .status-text.warning {
+            color: #ffd93d;
+            font-weight: bold;
+            animation: blink 0.8s ease-in-out infinite;
+        }
+
+        /* BAKE SHAME MODAL */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: linear-gradient(145deg, #2d1b4e, #1a1a2e);
+            border: 3px solid #ff6b6b;
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: bounceIn 0.5s ease;
+        }
+
+        .modal h2 {
+            font-family: 'Bangers', cursive;
+            font-size: 2.5rem;
+            color: #ff6b6b;
+            margin-bottom: 10px;
+        }
+
+        .modal .shame-name {
+            font-family: 'Permanent Marker', cursive;
+            font-size: 2rem;
+            color: #ffd93d;
+            margin: 10px 0;
+        }
+
+        .modal .shame-text {
+            font-size: 1.1rem;
+            color: #ccc;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+
+        .modal .bake-emoji {
+            font-size: 3rem;
+            margin: 15px 0;
+        }
+
+        .modal .btn-dismiss {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            border-radius: 12px;
+            font-family: 'Bangers', cursive;
+            font-size: 1.3rem;
+            cursor: pointer;
+            margin-top: 15px;
+            letter-spacing: 1px;
+        }
+
+        /* HALL OF SHAME */
+        .hall-of-shame {
+            max-width: 1200px;
+            margin: 30px auto;
+            padding: 0 20px 40px;
+        }
+
+        .hall-of-shame h2 {
+            font-family: 'Bangers', cursive;
+            font-size: 2rem;
+            color: #ffd93d;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .shame-log {
+            background: linear-gradient(145deg, #16213e, #0f0f23);
+            border: 1px solid #2a2a4a;
+            border-radius: 12px;
+            padding: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .shame-entry {
+            padding: 8px 12px;
+            border-bottom: 1px solid #2a2a4a;
+            font-size: 0.9rem;
+            color: #aaa;
+        }
+
+        .shame-entry:last-child { border-bottom: none; }
+        .shame-entry .entry-name { color: #ff6b6b; font-weight: bold; }
+        .shame-entry .entry-date { color: #666; font-size: 0.8rem; }
+
+        .empty-shame {
+            text-align: center;
+            color: #555;
+            font-style: italic;
+            padding: 20px;
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0% { transform: rotate(-1deg); }
+            100% { transform: rotate(1deg); }
+        }
+
+        @keyframes glow {
+            0% { box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+            100% { box-shadow: 0 4px 25px rgba(102, 126, 234, 0.7); }
+        }
+
+        @keyframes drip {
+            0% { transform: scale(0.5) rotate(-20deg); opacity: 0; }
+            50% { transform: scale(1.3) rotate(10deg); }
+            100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+
+        @keyframes pulse-danger {
+            0% { box-shadow: 0 0 5px rgba(255, 107, 107, 0.3); }
+            100% { box-shadow: 0 0 20px rgba(255, 107, 107, 0.6); }
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.05); }
+            70% { transform: scale(0.95); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        @keyframes confetti-fall {
+            0% { transform: translateY(-100vh) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        .confetti {
+            position: fixed;
+            top: -10px;
+            font-size: 1.5rem;
+            z-index: 999;
+            pointer-events: none;
+            animation: confetti-fall 3s linear forwards;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #444;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>DRIP CUP VIOLATIONS</h1>
+    <div class="subtitle">Leave the drip cup off the drip tray? Face the consequences.</div>
+</div>
+
+
+<div class="grid" id="grid"></div>
+
+<div class="hall-of-shame">
+    <h2>🍰 HALL OF BAKE SHAME 🍰</h2>
+    <div class="shame-log" id="shameLog">
+        <div class="empty-shame">No one has been shamed... yet. The Rat is watching.</div>
+    </div>
+</div>
+
+<div class="footer">
+    🐀 The Rat sees all. The Rat forgets nothing. The Rat demands baked goods. 🐀
+</div>
+
+<!-- SHAME MODAL -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h2>🚨 BAKE SHAME ACTIVATED 🚨</h2>
+        <div class="bake-emoji">🧁🍰🍪🎂🥐</div>
+        <div class="shame-name" id="shameName"></div>
+        <div class="shame-text" id="shameText"></div>
+        <button class="btn-dismiss" onclick="dismissModal()">I Accept My Fate 😔</button>
+    </div>
+</div>
+
+<script>
+const EMPLOYEES = [
+    { name: "Jacob", emoji: "👔" },
+    { name: "Harry", emoji: "🎩" },
+    { name: "Iona", emoji: "🌸" },
+    { name: "Amber", emoji: "💎" },
+    { name: "Louise", emoji: "🦋" },
+    { name: "Mike", emoji: "🎸" },
+    { name: "Dan", emoji: "🏋️" },
+    { name: "Seb", emoji: "🎯" },
+    { name: "Oli", emoji: "🦊" },
+    { name: "Charlie", emoji: "🐕" },
+    { name: "Ergert", emoji: "🐀" },
+    { name: "Berners", emoji: "🧠" },
+    { name: "Hoyon", emoji: "⚡" },
+];
+
+const MAX_VIOLATIONS = 5;
+
+const SHAME_MESSAGES = [
+    "has been CAUGHT by The Rat! Time to put on the apron and start baking for 13 hungry colleagues!",
+    "thought they could get away with it. The Rat NEVER forgets. BAKE. NOW.",
+    "has reached PEAK DRIP CUP NEGLIGENCE. The oven awaits. 13 mouths need feeding.",
+    "is officially on BAKE DUTY. The Rat has spoken. The people demand pastries.",
+    "just unlocked the 'Professional Cup Abandoner' achievement. Prize: baking for everyone!",
+];
+
+const WARNING_MESSAGES = [
+    "Skating on thin ice...",
+    "One more and you're baking!",
+    "The Rat is licking its lips...",
+    "Almost at bake shame!",
+    "Better preheat that oven...",
+];
+
+function loadData() {
+    const saved = localStorage.getItem('dripCupData');
+    if (saved) return JSON.parse(saved);
+    const data = {};
+    EMPLOYEES.forEach(e => { data[e.name] = 0; });
+    return data;
+}
+
+function saveData(data) {
+    localStorage.setItem('dripCupData', JSON.stringify(data));
+}
+
+function loadShameLog() {
+    const saved = localStorage.getItem('dripCupShameLog');
+    return saved ? JSON.parse(saved) : [];
+}
+
+function saveShameLog(log) {
+    localStorage.setItem('dripCupShameLog', JSON.stringify(log));
+}
+
+let violations = loadData();
+let shameLog = loadShameLog();
+
+function getStatusText(count) {
+    if (count === 0) return "Clean record... for now 👀";
+    if (count === 1) return "The Rat has noticed you 🐀";
+    if (count === 2) return "Two strikes. Getting risky.";
+    if (count === 3) return "Three! The Rat is taking notes 📝";
+    if (count === 4) return WARNING_MESSAGES[Math.floor(Math.random() * WARNING_MESSAGES.length)];
+    return "";
+}
+
+function renderCards() {
+    const grid = document.getElementById('grid');
+    grid.innerHTML = '';
+
+    EMPLOYEES.forEach(emp => {
+        const count = violations[emp.name] || 0;
+        const isDanger = count >= 4;
+
+        const card = document.createElement('div');
+        card.className = `card${isDanger ? ' danger' : ''}`;
+
+        let cups = '';
+        for (let i = 0; i < MAX_VIOLATIONS; i++) {
+            cups += `<span class="cup ${i < count ? 'filled' : ''}">${i < count ? '💧' : '🫥'}</span>`;
+        }
+
+        card.innerHTML = `
+            <div class="card-header">
+                <span class="card-name">${emp.emoji} ${emp.name}</span>
+                <span class="violation-count">${count}/${MAX_VIOLATIONS}</span>
+            </div>
+            <div class="cup-meter">${cups}</div>
+            <div class="card-actions">
+                <button class="btn btn-violate" onclick="addViolation('${emp.name}')">
+                    🫵 VIOLATION!
+                </button>
+                <button class="btn btn-undo" onclick="undoViolation('${emp.name}')">
+                    ↩️
+                </button>
+            </div>
+            <div class="status-text ${isDanger ? 'warning' : ''}">${getStatusText(count)}</div>
+        `;
+
+        grid.appendChild(card);
+    });
+}
+
+function renderShameLog() {
+    const logEl = document.getElementById('shameLog');
+    if (shameLog.length === 0) {
+        logEl.innerHTML = '<div class="empty-shame">No one has been shamed... yet. The Rat is watching.</div>';
+        return;
+    }
+
+    logEl.innerHTML = shameLog.map(entry =>
+        `<div class="shame-entry">
+            <span class="entry-name">${entry.name}</span> was sentenced to bake duty
+            <span class="entry-date">(${entry.date})</span>
+        </div>`
+    ).reverse().join('');
+}
+
+function spawnConfetti() {
+    const emojis = ['🧁', '🍰', '🍪', '🎂', '🥐', '🍩', '🥧', '☕', '🐀'];
+    for (let i = 0; i < 30; i++) {
+        const el = document.createElement('div');
+        el.className = 'confetti';
+        el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+        el.style.left = Math.random() * 100 + 'vw';
+        el.style.animationDuration = (2 + Math.random() * 2) + 's';
+        el.style.animationDelay = Math.random() * 1 + 's';
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 5000);
+    }
+}
+
+function addViolation(name) {
+    violations[name] = (violations[name] || 0) + 1;
+
+    if (violations[name] >= MAX_VIOLATIONS) {
+        // BAKE SHAME!
+        const msg = SHAME_MESSAGES[Math.floor(Math.random() * SHAME_MESSAGES.length)];
+        document.getElementById('shameName').textContent = name;
+        document.getElementById('shameText').textContent = `${name} ${msg}`;
+        document.getElementById('modal').classList.add('active');
+
+        shameLog.push({
+            name: name,
+            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+        });
+        saveShameLog(shameLog);
+
+        violations[name] = 0;
+        spawnConfetti();
+    }
+
+    saveData(violations);
+    renderCards();
+    renderShameLog();
+}
+
+function undoViolation(name) {
+    if (violations[name] > 0) {
+        violations[name]--;
+        saveData(violations);
+        renderCards();
+    }
+}
+
+function dismissModal() {
+    document.getElementById('modal').classList.remove('active');
+}
+
+// Initial render
+renderCards();
+renderShameLog();
+</script>
+
+</body>
+</html>
