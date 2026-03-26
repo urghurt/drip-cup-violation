@@ -7,6 +7,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Permanent+Marker&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
     <style>
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -391,6 +393,20 @@
 </div>
 
 <script>
+// Firebase config
+const firebaseConfig = {
+    apiKey: "AIzaSyAz6EZpzVv7XyyrFS3YNDWeKa7-W_z8QRA",
+    authDomain: "drip-cup-violations.firebaseapp.com",
+    databaseURL: "https://drip-cup-violations-default-rtdb.europe-west1.firebasedatabase.app",
+    projectId: "drip-cup-violations",
+    storageBucket: "drip-cup-violations.firebasestorage.app",
+    messagingSenderId: "91888606289",
+    appId: "1:91888606289:web:e83f6cbe37f52c5fa36c70"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
 const EMPLOYEES = [
     { name: "Jacob", emoji: "👔" },
     { name: "Harry", emoji: "🎩" },
@@ -425,29 +441,28 @@ const WARNING_MESSAGES = [
     "Better preheat that oven...",
 ];
 
-function loadData() {
-    const saved = localStorage.getItem('dripCupData');
-    if (saved) return JSON.parse(saved);
-    const data = {};
-    EMPLOYEES.forEach(e => { data[e.name] = 0; });
-    return data;
-}
+// Initialize with defaults
+let violations = {};
+EMPLOYEES.forEach(e => { violations[e.name] = 0; });
+let shameLog = [];
 
-function saveData(data) {
-    localStorage.setItem('dripCupData', JSON.stringify(data));
-}
+// Real-time listener for violations
+db.ref('violations').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (data) {
+        EMPLOYEES.forEach(e => { violations[e.name] = data[e.name] || 0; });
+    } else {
+        EMPLOYEES.forEach(e => { violations[e.name] = 0; });
+    }
+    renderCards();
+});
 
-function loadShameLog() {
-    const saved = localStorage.getItem('dripCupShameLog');
-    return saved ? JSON.parse(saved) : [];
-}
-
-function saveShameLog(log) {
-    localStorage.setItem('dripCupShameLog', JSON.stringify(log));
-}
-
-let violations = loadData();
-let shameLog = loadShameLog();
+// Real-time listener for shame log
+db.ref('shameLog').on('value', (snapshot) => {
+    const data = snapshot.val();
+    shameLog = data ? Object.values(data) : [];
+    renderShameLog();
+});
 
 function getStatusText(count) {
     if (count === 0) return "Clean record... for now 👀";
@@ -534,26 +549,22 @@ function addViolation(name) {
         document.getElementById('shameText').textContent = `${name} ${msg}`;
         document.getElementById('modal').classList.add('active');
 
-        shameLog.push({
+        db.ref('shameLog').push({
             name: name,
             date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
         });
-        saveShameLog(shameLog);
 
         violations[name] = 0;
         spawnConfetti();
     }
 
-    saveData(violations);
-    renderCards();
-    renderShameLog();
+    db.ref('violations').update({ [name]: violations[name] });
 }
 
 function undoViolation(name) {
     if (violations[name] > 0) {
         violations[name]--;
-        saveData(violations);
-        renderCards();
+        db.ref('violations').update({ [name]: violations[name] });
     }
 }
 
@@ -561,7 +572,7 @@ function dismissModal() {
     document.getElementById('modal').classList.remove('active');
 }
 
-// Initial render
+// Initial render (Firebase listeners will update once data loads)
 renderCards();
 renderShameLog();
 </script>
