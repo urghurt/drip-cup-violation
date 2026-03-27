@@ -857,6 +857,15 @@
     // Stored in memory only — never exposed, never in source
     let currentAuthToken = null;
 
+    // Authenticated write helper — sets writeAuth, performs write, then clears writeAuth
+    async function authWrite(updates) {
+        if (!currentAuthToken) return;
+        updates.writeAuth = currentAuthToken;
+        await db.ref().update(updates);
+        // Immediately clear writeAuth so it can't be reused by unauthenticated writes
+        try { await db.ref('writeAuth').set(null); } catch(e) {}
+    }
+
     async function addViolation(name) {
         if (!VALID_NAMES.has(name) || !currentAuthToken) return;
 
@@ -869,12 +878,11 @@
             document.getElementById('modal').classList.add('active');
 
             try {
-                await db.ref().update({
+                await authWrite({
                     [`shameLog/${db.ref('shameLog').push().key}`]: {
                         name: name,
                         date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-                    },
-                    writeAuth: currentAuthToken
+                    }
                 });
             } catch(e) {}
 
@@ -883,9 +891,8 @@
         }
 
         try {
-            await db.ref().update({
-                [`violations/${name}`]: violations[name],
-                writeAuth: currentAuthToken
+            await authWrite({
+                [`violations/${name}`]: violations[name]
             });
         } catch(e) {}
     }
@@ -896,9 +903,8 @@
         if (violations[name] > 0) {
             violations[name]--;
             try {
-                await db.ref().update({
-                    [`violations/${name}`]: violations[name],
-                    writeAuth: currentAuthToken
+                await authWrite({
+                    [`violations/${name}`]: violations[name]
                 });
             } catch(e) {}
         }
@@ -907,9 +913,8 @@
     async function deleteShameEntry(key) {
         if (!currentAuthToken || !key) return;
         try {
-            await db.ref().update({
-                [`shameLog/${key}`]: null,
-                writeAuth: currentAuthToken
+            await authWrite({
+                [`shameLog/${key}`]: null
             });
         } catch(e) {}
     }
