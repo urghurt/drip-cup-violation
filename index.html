@@ -463,6 +463,103 @@
 
         .lock-modal-close:hover { color: #eee; }
 
+        /* PRESS RELEASE MODAL */
+        .press-overlay {
+            display: flex;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .press-modal {
+            background: linear-gradient(145deg, #2d1b4e, #1a1a2e);
+            border: 3px solid #667eea;
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 620px;
+            width: 92%;
+            max-height: 85vh;
+            overflow-y: auto;
+            animation: bounceIn 0.5s ease;
+            color: #ccc;
+            line-height: 1.7;
+            position: relative;
+        }
+
+        .press-modal .press-label {
+            text-transform: uppercase;
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            color: #888;
+            margin-bottom: 4px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .press-modal h2 {
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 1.3rem;
+            color: #fff;
+            margin-bottom: 4px;
+            font-weight: 700;
+        }
+
+        .press-modal .press-date {
+            font-size: 0.85rem;
+            color: #888;
+            font-style: italic;
+            margin-bottom: 20px;
+        }
+
+        .press-modal p {
+            font-size: 0.9rem;
+            margin-bottom: 14px;
+            color: #ccc;
+        }
+
+        .press-modal ul {
+            margin: 10px 0 14px 20px;
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        .press-modal ul li {
+            margin-bottom: 6px;
+        }
+
+        .press-modal .press-signoff {
+            margin-top: 20px;
+            font-weight: bold;
+            font-size: 0.95rem;
+            color: #eee;
+        }
+
+        .press-modal .press-contact {
+            font-size: 0.8rem;
+            color: #666;
+            font-style: italic;
+            margin-top: 6px;
+        }
+
+        .press-dismiss {
+            display: block;
+            margin: 24px auto 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 40px;
+            border-radius: 12px;
+            font-family: 'Bangers', cursive;
+            font-size: 1.3rem;
+            cursor: pointer;
+            letter-spacing: 1px;
+        }
+
+        .press-dismiss:hover { box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5); }
+
         .lock-modal button {
             background: linear-gradient(135deg, #667eea, #764ba2);
             color: white;
@@ -496,6 +593,32 @@
 
 <div class="footer">
     🐀 The Rat sees all. The Rat forgets nothing. The Rat demands baked goods. 🐀
+</div>
+
+<!-- PRESS RELEASE MODAL -->
+<div class="press-overlay" id="pressRelease" style="display:none">
+    <div class="press-modal">
+        <div class="press-label">For Immediate Release</div>
+        <h2>Statement Regarding the Drip Cup Violation Tracker Security Incident</h2>
+        <div class="press-date">March 27, 2026</div>
+        <p>Earlier this week, it was brought to our attention that a critical API key associated with the Drip Cup Violation Tracker was inadvertently exposed in a public GitHub repository. Upon discovery, our security team immediately launched a full investigation into the scope and impact of this incident.</p>
+        <p>We would like to sincerely apologise to everyone in the office who was subjected to the repeated and unrelenting violation sound effects triggered by unauthorised actors exploiting vulnerabilities in the system. We understand that the constant "FAHHH" sound effect blasting through the Sonos was disruptive, unsettling, and in several cases described as "absolutely unbearable." This was not the intended experience.</p>
+        <p>The attacks were made possible by exposed webhook URLs and insufficient client-side authentication, which allowed bad actors to trigger the Sonos alarm at will — and they did, repeatedly. We are deeply sorry.</p>
+        <p>We take the security and acoustic wellbeing of the office extremely seriously. The trust placed in us to faithfully track who has failed to place the drip cup back on the drip tray is not something we take lightly.</p>
+        <p>In response, we have taken the following steps:</p>
+        <ul>
+            <li>Engaged a world-class cybersecurity consultant to conduct a full penetration test</li>
+            <li>Removed all plaintext credentials and webhook URLs from the codebase</li>
+            <li>Implemented salted SHA-256 hashing with per-write authentication</li>
+            <li>Restricted API key access to authorised domains only</li>
+            <li>Deployed server-side change detection to eliminate all client-side attack vectors</li>
+            <li>Ensured the violation sound can no longer be triggered without the password</li>
+        </ul>
+        <p>We sincerely apologise to anyone affected — particularly those seated nearest to the Sonos. A full post-mortem will not be published because, frankly, it's a drip cup.</p>
+        <div class="press-signoff">— The Drip Cup Violation Tracker Security Team</div>
+        <div class="press-contact">For media enquiries, please do not contact us.</div>
+        <button class="press-dismiss" onclick="localStorage.setItem('pressAcknowledged','1');document.getElementById('pressRelease').remove()">Acknowledged</button>
+    </div>
 </div>
 
 <!-- LOCK TOGGLE -->
@@ -813,6 +936,11 @@
 
     renderCards();
     renderShameLog();
+
+    // Show press release only once per browser
+    if (!localStorage.getItem('pressAcknowledged')) {
+        document.getElementById('pressRelease').style.display = 'flex';
+    }
 })();
 </script>
 
