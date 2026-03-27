@@ -717,14 +717,15 @@
     const SONOS_WEBHOOK = 'https://joinploy.app.n8n.cloud/webhook/2c96f6da-10b8-426d-abc0-000435aaee1b';
     const SONOS_SHAME_WEBHOOK = 'https://joinploy.app.n8n.cloud/webhook/9182bef8-5ef2-4348-a2f9-8417d6f71cdb';
 
+    // Stored in memory only — never exposed, never in source
+    let currentAuthToken = null;
+
     function triggerSonos(url) {
         fetch(url, { mode: 'no-cors' }).catch(() => {});
     }
 
     async function addViolation(name) {
-        if (!VALID_NAMES.has(name)) return;
-        const snap = await db.ref('lockState').once('value');
-        if (snap.val() !== false) return;
+        if (!VALID_NAMES.has(name) || !currentAuthToken) return;
 
         violations[name] = (violations[name] || 0) + 1;
 
@@ -740,26 +741,39 @@
             document.getElementById('shameText').textContent = `${name} ${msg}`;
             document.getElementById('modal').classList.add('active');
 
-            db.ref('shameLog').push({
-                name: name,
-                date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-            });
+            try {
+                await db.ref().update({
+                    [`shameLog/${db.ref('shameLog').push().key}`]: {
+                        name: name,
+                        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                    },
+                    writeAuth: currentAuthToken
+                });
+            } catch(e) {}
 
             violations[name] = 0;
             spawnConfetti();
         }
 
-        db.ref('violations').update({ [name]: violations[name] });
+        try {
+            await db.ref().update({
+                [`violations/${name}`]: violations[name],
+                writeAuth: currentAuthToken
+            });
+        } catch(e) {}
     }
 
     async function undoViolation(name) {
-        if (!VALID_NAMES.has(name)) return;
-        const snap = await db.ref('lockState').once('value');
-        if (snap.val() !== false) return;
+        if (!VALID_NAMES.has(name) || !currentAuthToken) return;
 
         if (violations[name] > 0) {
             violations[name]--;
-            db.ref('violations').update({ [name]: violations[name] });
+            try {
+                await db.ref().update({
+                    [`violations/${name}`]: violations[name],
+                    writeAuth: currentAuthToken
+                });
+            } catch(e) {}
         }
     }
 
@@ -772,6 +786,7 @@
                 document.getElementById('lockError').textContent = '';
                 setTimeout(() => document.getElementById('lockPassword').focus(), 100);
             } else {
+                currentAuthToken = null;
                 db.ref().update({ lockState: true, unlockToken: null });
             }
         },
@@ -782,6 +797,7 @@
                 // Firebase rules validate the hash server-side
                 // If wrong hash, the write is REJECTED by the server
                 await db.ref().update({ lockState: false, unlockToken: inputHash });
+                currentAuthToken = inputHash;
                 document.getElementById('lockModal').classList.remove('active');
             } catch (e) {
                 document.getElementById('lockError').textContent = 'Wrong password! The Rat denies you.';
