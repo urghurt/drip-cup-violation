@@ -418,6 +418,7 @@
             max-width: 400px;
             width: 90%;
             animation: bounceIn 0.5s ease;
+            position: relative;
         }
 
         .lock-modal h2 {
@@ -448,6 +449,18 @@
             margin-top: 8px;
             min-height: 20px;
         }
+
+        .lock-modal-close {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            font-size: 1.4rem;
+            color: #888;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .lock-modal-close:hover { color: #eee; }
 
         .lock-modal button {
             background: linear-gradient(135deg, #667eea, #764ba2);
@@ -490,6 +503,7 @@
 <!-- PASSWORD MODAL -->
 <div class="lock-modal-overlay" id="lockModal">
     <div class="lock-modal">
+        <span class="lock-modal-close" onclick="closeLockModal()">✕</span>
         <h2>🔐 ENTER THE RAT'S PASSWORD 🔐</h2>
         <input type="password" id="lockPassword" placeholder="Password..." onkeydown="if(event.key==='Enter')submitPassword()">
         <div class="error-text" id="lockError"></div>
@@ -763,6 +777,9 @@
         },
         dismissModal() {
             document.getElementById('modal').classList.remove('active');
+        },
+        closeLockModal() {
+            document.getElementById('lockModal').classList.remove('active');
         }
     });
 
@@ -770,6 +787,7 @@
     Object.defineProperty(window, 'toggleLock', { value: api.toggleLock, writable: false, configurable: false });
     Object.defineProperty(window, 'submitPassword', { value: api.submitPassword, writable: false, configurable: false });
     Object.defineProperty(window, 'dismissModal', { value: api.dismissModal, writable: false, configurable: false });
+    Object.defineProperty(window, 'closeLockModal', { value: api.closeLockModal, writable: false, configurable: false });
 
     // Prevent adding addViolation/undoViolation to window
     Object.defineProperty(window, 'addViolation', { get() { console.log('🐀 The Rat is not amused.'); return () => {}; }, configurable: false });
