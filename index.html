@@ -311,6 +311,17 @@
         .shame-entry .entry-name { color: #ff6b6b; font-weight: bold; }
         .shame-entry .entry-date { color: #666; font-size: 0.8rem; }
 
+        .shame-entry .entry-delete {
+            float: right;
+            color: #555;
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 0 4px;
+            transition: color 0.2s;
+        }
+
+        .shame-entry .entry-delete:hover { color: #ff6b6b; }
+
         .empty-shame {
             text-align: center;
             color: #555;
@@ -737,7 +748,7 @@
 
     db.ref('shameLog').on('value', (snapshot) => {
         const data = snapshot.val();
-        shameLog = data ? Object.values(data) : [];
+        shameLog = data ? Object.entries(data).map(([key, val]) => ({ key, ...val })) : [];
         renderShameLog();
     });
 
@@ -818,8 +829,15 @@
             `<div class="shame-entry">
                 <span class="entry-name">${entry.name}</span> was sentenced to bake duty
                 <span class="entry-date">(${entry.date})</span>
+                ${currentAuthToken ? `<span class="entry-delete" data-key="${entry.key}">✕</span>` : ''}
             </div>`
         ).reverse().join('');
+
+        if (currentAuthToken) {
+            logEl.querySelectorAll('.entry-delete').forEach(btn => {
+                btn.addEventListener('click', () => deleteShameEntry(btn.dataset.key));
+            });
+        }
     }
 
     function spawnConfetti() {
@@ -884,6 +902,16 @@
                 });
             } catch(e) {}
         }
+    }
+
+    async function deleteShameEntry(key) {
+        if (!currentAuthToken || !key) return;
+        try {
+            await db.ref().update({
+                [`shameLog/${key}`]: null,
+                writeAuth: currentAuthToken
+            });
+        } catch(e) {}
     }
 
     // Expose only what the HTML onclick handlers need — through a sealed proxy
