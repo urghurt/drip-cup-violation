@@ -546,13 +546,39 @@ const WARNING_MESSAGES = [
     "Better preheat that oven...",
 ];
 
-const LOCK_PASSWORD = 'pepesilvia';
-let isLocked = true;
+const PASSWORD_HASH = '94cd50da0c938ab22c04e3daaf4dd5363eada6544d1914842888c2662041ee0f';
+
+// Lock state lives in Firebase — no local variable to tamper with
+let _lockState = true;
+
+// Use a getter so console tampering doesn't work
+Object.defineProperty(window, 'isLocked', {
+    get() { return _lockState; },
+    set() { console.log('🐀 Nice try. The Rat sees all.'); },
+    configurable: false
+});
+
+// Hash function
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Initialize with defaults
 let violations = {};
 EMPLOYEES.forEach(e => { violations[e.name] = 0; });
 let shameLog = [];
+
+// Real-time listener for lock state
+db.ref('lockState').on('value', (snapshot) => {
+    const locked = snapshot.val();
+    _lockState = locked === null ? true : locked;
+    document.getElementById('lockBtn').textContent = _lockState ? '🔒' : '🔓';
+    renderCards();
+});
 
 // Real-time listener for violations
 db.ref('violations').on('value', (snapshot) => {
@@ -648,11 +674,17 @@ function spawnConfetti() {
     }
 }
 
-function addViolation(name) {
+async function addViolation(name) {
+    // Double-check lock state from Firebase before allowing
+    const snap = await db.ref('lockState').once('value');
+    if (snap.val() !== false) {
+        console.log('🐀 Nice try. The app is locked.');
+        return;
+    }
+
     violations[name] = (violations[name] || 0) + 1;
 
     if (violations[name] >= MAX_VIOLATIONS) {
-        // BAKE SHAME!
         const msg = SHAME_MESSAGES[Math.floor(Math.random() * SHAME_MESSAGES.length)];
         document.getElementById('shameName').textContent = name;
         document.getElementById('shameText').textContent = `${name} ${msg}`;
@@ -670,7 +702,14 @@ function addViolation(name) {
     db.ref('violations').update({ [name]: violations[name] });
 }
 
-function undoViolation(name) {
+async function undoViolation(name) {
+    // Double-check lock state from Firebase before allowing
+    const snap = await db.ref('lockState').once('value');
+    if (snap.val() !== false) {
+        console.log('🐀 Nice try. The app is locked.');
+        return;
+    }
+
     if (violations[name] > 0) {
         violations[name]--;
         db.ref('violations').update({ [name]: violations[name] });
@@ -682,25 +721,22 @@ function dismissModal() {
 }
 
 function toggleLock() {
-    if (isLocked) {
+    if (_lockState) {
         document.getElementById('lockModal').classList.add('active');
         document.getElementById('lockPassword').value = '';
         document.getElementById('lockError').textContent = '';
         setTimeout(() => document.getElementById('lockPassword').focus(), 100);
     } else {
-        isLocked = true;
-        document.getElementById('lockBtn').textContent = '🔒';
-        renderCards();
+        db.ref('lockState').set(true);
     }
 }
 
-function submitPassword() {
+async function submitPassword() {
     const input = document.getElementById('lockPassword').value;
-    if (input === LOCK_PASSWORD) {
-        isLocked = false;
-        document.getElementById('lockBtn').textContent = '🔓';
+    const inputHash = await hashPassword(input);
+    if (inputHash === PASSWORD_HASH) {
+        db.ref('lockState').set(false);
         document.getElementById('lockModal').classList.remove('active');
-        renderCards();
     } else {
         document.getElementById('lockError').textContent = 'Wrong password! The Rat denies you.';
         document.getElementById('lockPassword').value = '';
