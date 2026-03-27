@@ -719,7 +719,7 @@
     let currentAuthToken = null;
 
     function triggerSonos(url) {
-        fetch(url, { mode: 'no-cors' }).catch(() => {});
+        fetch(url, { headers: { 'x-rat-key': 'e200ce25e89a9cd05d7884c4308542c3b5c251332c985dc00340abbae3c4b87e' } }).catch(() => {});
     }
 
     async function addViolation(name) {
