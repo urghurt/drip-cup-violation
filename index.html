@@ -566,7 +566,7 @@
     ];
 
     const PASSWORD_SALT = 'drip-cup-rat-2026';
-    const PASSWORD_HASH = 'ec097ef7da23e028737ff60236de571da3b331f35292e4effa951536cce0b8d9';
+    // No hash stored client-side. Firebase rules are the sole validator.
 
     let lockState = true;
     let violations = {};
@@ -751,10 +751,12 @@
         async submitPassword() {
             const input = document.getElementById('lockPassword').value;
             const inputHash = await hashPassword(input);
-            if (inputHash === PASSWORD_HASH) {
-                db.ref().update({ lockState: false, unlockToken: inputHash });
+            try {
+                // Firebase rules validate the hash server-side
+                // If wrong hash, the write is REJECTED by the server
+                await db.ref().update({ lockState: false, unlockToken: inputHash });
                 document.getElementById('lockModal').classList.remove('active');
-            } else {
+            } catch (e) {
                 document.getElementById('lockError').textContent = 'Wrong password! The Rat denies you.';
                 document.getElementById('lockPassword').value = '';
             }
