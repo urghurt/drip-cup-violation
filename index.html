@@ -712,26 +712,13 @@
         }
     }
 
-    const SONOS_WEBHOOK = 'https://joinploy.app.n8n.cloud/webhook/2c96f6da-10b8-426d-abc0-000435aaee1b';
-    const SONOS_SHAME_WEBHOOK = 'https://joinploy.app.n8n.cloud/webhook/9182bef8-5ef2-4348-a2f9-8417d6f71cdb';
-
     // Stored in memory only — never exposed, never in source
     let currentAuthToken = null;
-
-    function triggerSonos(url) {
-        fetch(url, { headers: { 'x-rat-key': 'e200ce25e89a9cd05d7884c4308542c3b5c251332c985dc00340abbae3c4b87e' } }).catch(() => {});
-    }
 
     async function addViolation(name) {
         if (!VALID_NAMES.has(name) || !currentAuthToken) return;
 
         violations[name] = (violations[name] || 0) + 1;
-
-        if (violations[name] >= MAX_VIOLATIONS) {
-            triggerSonos(SONOS_SHAME_WEBHOOK);
-        } else {
-            triggerSonos(SONOS_WEBHOOK);
-        }
 
         if (violations[name] >= MAX_VIOLATIONS) {
             const msg = SHAME_MESSAGES[Math.floor(Math.random() * SHAME_MESSAGES.length)];
