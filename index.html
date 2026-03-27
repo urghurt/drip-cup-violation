@@ -509,255 +509,273 @@
 </div>
 
 <script>
-// Firebase config
-const firebaseConfig = {
-    apiKey: "AIzaSyAz6EZpzVv7XyyrFS3YNDWeKa7-W_z8QRA",
-    authDomain: "drip-cup-violations.firebaseapp.com",
-    databaseURL: "https://drip-cup-violations-default-rtdb.europe-west1.firebasedatabase.app",
-    projectId: "drip-cup-violations",
-    storageBucket: "drip-cup-violations.firebasestorage.app",
-    messagingSenderId: "91888606289",
-    appId: "1:91888606289:web:e83f6cbe37f52c5fa36c70"
-};
+// Everything in an IIFE — nothing leaks to window/console
+(function() {
+    'use strict';
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+    const firebaseConfig = {
+        apiKey: "AIzaSyAz6EZpzVv7XyyrFS3YNDWeKa7-W_z8QRA",
+        authDomain: "drip-cup-violations.firebaseapp.com",
+        databaseURL: "https://drip-cup-violations-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "drip-cup-violations",
+        storageBucket: "drip-cup-violations.firebasestorage.app",
+        messagingSenderId: "91888606289",
+        appId: "1:91888606289:web:e83f6cbe37f52c5fa36c70"
+    };
 
-const EMPLOYEES = [
-    { name: "Jacob", img: "jacob.png" },
-    { name: "Harry", img: "harry.png" },
-    { name: "Iona", img: "iona.png" },
-    { name: "Amber", img: "amber.png" },
-    { name: "Louise", img: "louise.png" },
-    { name: "Mike", img: "mike.png" },
-    { name: "Dan", img: "dan.png" },
-    { name: "Seb", img: "seb.png" },
-    { name: "Oli", img: "oli.png" },
-    { name: "Charlie", img: "charlie.png" },
-    { name: "Ergert", img: "ergert.png" },
-    { name: "Berners", img: "berners.png" },
-    { name: "Hoyon", img: "hoyon.png" },
-];
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-const MAX_VIOLATIONS = 5;
+    // Nuke global Firebase references so console can't get a db handle
+    delete window.firebase;
+    Object.defineProperty(window, 'firebase', { get() { console.log('🐀 The Rat has confiscated Firebase.'); return undefined; }, configurable: false });
 
-const SHAME_MESSAGES = [
-    "has been CAUGHT by The Rat! Time to put on the apron and start baking for 13 hungry colleagues!",
-    "thought they could get away with it. The Rat NEVER forgets. BAKE. NOW.",
-    "has reached PEAK DRIP CUP NEGLIGENCE. The oven awaits. 13 mouths need feeding.",
-    "is officially on BAKE DUTY. The Rat has spoken. The people demand pastries.",
-    "just unlocked the 'Professional Cup Abandoner' achievement. Prize: baking for everyone!",
-];
+    const EMPLOYEES = [
+        { name: "Jacob", img: "jacob.png" },
+        { name: "Harry", img: "harry.png" },
+        { name: "Iona", img: "iona.png" },
+        { name: "Amber", img: "amber.png" },
+        { name: "Louise", img: "louise.png" },
+        { name: "Mike", img: "mike.png" },
+        { name: "Dan", img: "dan.png" },
+        { name: "Seb", img: "seb.png" },
+        { name: "Oli", img: "oli.png" },
+        { name: "Charlie", img: "charlie.png" },
+        { name: "Ergert", img: "ergert.png" },
+        { name: "Berners", img: "berners.png" },
+        { name: "Hoyon", img: "hoyon.png" },
+    ];
+    const VALID_NAMES = new Set(EMPLOYEES.map(e => e.name));
 
-const WARNING_MESSAGES = [
-    "Skating on thin ice...",
-    "One more and you're baking!",
-    "The Rat is licking its lips...",
-    "Almost at bake shame!",
-    "Better preheat that oven...",
-];
+    const MAX_VIOLATIONS = 5;
 
-const PASSWORD_SALT = 'drip-cup-rat-2026';
-const PASSWORD_HASH = 'ec097ef7da23e028737ff60236de571da3b331f35292e4effa951536cce0b8d9';
+    const SHAME_MESSAGES = [
+        "has been CAUGHT by The Rat! Time to put on the apron and start baking for 13 hungry colleagues!",
+        "thought they could get away with it. The Rat NEVER forgets. BAKE. NOW.",
+        "has reached PEAK DRIP CUP NEGLIGENCE. The oven awaits. 13 mouths need feeding.",
+        "is officially on BAKE DUTY. The Rat has spoken. The people demand pastries.",
+        "just unlocked the 'Professional Cup Abandoner' achievement. Prize: baking for everyone!",
+    ];
 
-// Lock state lives in Firebase — no local variable to tamper with
-let _lockState = true;
+    const WARNING_MESSAGES = [
+        "Skating on thin ice...",
+        "One more and you're baking!",
+        "The Rat is licking its lips...",
+        "Almost at bake shame!",
+        "Better preheat that oven...",
+    ];
 
-// Use a getter so console tampering doesn't work
-Object.defineProperty(window, 'isLocked', {
-    get() { return _lockState; },
-    set() { console.log('🐀 Nice try. The Rat sees all.'); },
-    configurable: false
-});
+    const PASSWORD_SALT = 'drip-cup-rat-2026';
+    const PASSWORD_HASH = 'ec097ef7da23e028737ff60236de571da3b331f35292e4effa951536cce0b8d9';
 
-// Hash function
-async function hashPassword(password) {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(PASSWORD_SALT + password);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-}
+    let lockState = true;
+    let violations = {};
+    EMPLOYEES.forEach(e => { violations[e.name] = 0; });
+    let shameLog = [];
 
-// Initialize with defaults
-let violations = {};
-EMPLOYEES.forEach(e => { violations[e.name] = 0; });
-let shameLog = [];
-
-// Real-time listener for lock state
-db.ref('lockState').on('value', (snapshot) => {
-    const locked = snapshot.val();
-    _lockState = locked === null ? true : locked;
-    document.getElementById('lockBtn').textContent = _lockState ? '🔒' : '🔓';
-    renderCards();
-});
-
-// Real-time listener for violations
-db.ref('violations').on('value', (snapshot) => {
-    const data = snapshot.val();
-    if (data) {
-        EMPLOYEES.forEach(e => { violations[e.name] = data[e.name] || 0; });
-    } else {
-        EMPLOYEES.forEach(e => { violations[e.name] = 0; });
+    async function hashPassword(password) {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(PASSWORD_SALT + password);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     }
-    renderCards();
-});
 
-// Real-time listener for shame log
-db.ref('shameLog').on('value', (snapshot) => {
-    const data = snapshot.val();
-    shameLog = data ? Object.values(data) : [];
-    renderShameLog();
-});
+    // Real-time listeners
+    db.ref('lockState').on('value', (snapshot) => {
+        const val = snapshot.val();
+        lockState = val === null ? true : val;
+        document.getElementById('lockBtn').textContent = lockState ? '🔒' : '🔓';
+        renderCards();
+    });
 
-function getStatusText(count) {
-    if (count === 0) return "Clean record... for now 👀";
-    if (count === 1) return "The Rat has noticed you 🐀";
-    if (count === 2) return "Two strikes. Getting risky.";
-    if (count === 3) return "Three! The Rat is taking notes 📝";
-    if (count === 4) return WARNING_MESSAGES[Math.floor(Math.random() * WARNING_MESSAGES.length)];
-    return "";
-}
-
-function renderCards() {
-    const grid = document.getElementById('grid');
-    grid.innerHTML = '';
-
-    EMPLOYEES.forEach(emp => {
-        const count = violations[emp.name] || 0;
-        const isDanger = count >= 4;
-
-        const card = document.createElement('div');
-        card.className = `card${isDanger ? ' danger' : ''}`;
-
-        let cups = '';
-        for (let i = 0; i < MAX_VIOLATIONS; i++) {
-            cups += `<span class="cup ${i < count ? 'filled' : ''}">${i < count ? '💧' : '🫥'}</span>`;
+    db.ref('violations').on('value', (snapshot) => {
+        const data = snapshot.val();
+        if (data) {
+            EMPLOYEES.forEach(e => { violations[e.name] = data[e.name] || 0; });
+        } else {
+            EMPLOYEES.forEach(e => { violations[e.name] = 0; });
         }
+        renderCards();
+    });
 
-        card.innerHTML = `
-            <div class="card-header">
+    db.ref('shameLog').on('value', (snapshot) => {
+        const data = snapshot.val();
+        shameLog = data ? Object.values(data) : [];
+        renderShameLog();
+    });
+
+    function getStatusText(count) {
+        if (count === 0) return "Clean record... for now 👀";
+        if (count === 1) return "The Rat has noticed you 🐀";
+        if (count === 2) return "Two strikes. Getting risky.";
+        if (count === 3) return "Three! The Rat is taking notes 📝";
+        if (count === 4) return WARNING_MESSAGES[Math.floor(Math.random() * WARNING_MESSAGES.length)];
+        return "";
+    }
+
+    function renderCards() {
+        const grid = document.getElementById('grid');
+        grid.innerHTML = '';
+
+        EMPLOYEES.forEach(emp => {
+            const count = violations[emp.name] || 0;
+            const isDanger = count >= 4;
+
+            const card = document.createElement('div');
+            card.className = `card${isDanger ? ' danger' : ''}`;
+
+            let cups = '';
+            for (let i = 0; i < MAX_VIOLATIONS; i++) {
+                cups += `<span class="cup ${i < count ? 'filled' : ''}">${i < count ? '💧' : '🫥'}</span>`;
+            }
+
+            const header = document.createElement('div');
+            header.className = 'card-header';
+            header.innerHTML = `
                 <span class="card-name"><img class="avatar" src="${emp.img}" alt="${emp.name}"> ${emp.name}</span>
                 <span class="violation-count">${count}/${MAX_VIOLATIONS}</span>
-            </div>
-            <div class="cup-meter">${cups}</div>
-            ${!isLocked ? `
-            <div class="card-actions">
-                <button class="btn btn-violate" onclick="addViolation('${emp.name}')">
-                    🫵 VIOLATION!
-                </button>
-                <button class="btn btn-undo" onclick="undoViolation('${emp.name}')">
-                    ↩️
-                </button>
-            </div>` : ''}
-            <div class="status-text ${isDanger ? 'warning' : ''}">${getStatusText(count)}</div>
-        `;
+            `;
+            card.appendChild(header);
 
-        grid.appendChild(card);
-    });
-}
+            const meter = document.createElement('div');
+            meter.className = 'cup-meter';
+            meter.innerHTML = cups;
+            card.appendChild(meter);
 
-function renderShameLog() {
-    const logEl = document.getElementById('shameLog');
-    if (shameLog.length === 0) {
-        logEl.innerHTML = '<div class="empty-shame">No one has been shamed... yet. The Rat is watching.</div>';
-        return;
-    }
+            if (!lockState) {
+                const actions = document.createElement('div');
+                actions.className = 'card-actions';
 
-    logEl.innerHTML = shameLog.map(entry =>
-        `<div class="shame-entry">
-            <span class="entry-name">${entry.name}</span> was sentenced to bake duty
-            <span class="entry-date">(${entry.date})</span>
-        </div>`
-    ).reverse().join('');
-}
+                const violateBtn = document.createElement('button');
+                violateBtn.className = 'btn btn-violate';
+                violateBtn.textContent = '🫵 VIOLATION!';
+                violateBtn.addEventListener('click', () => addViolation(emp.name));
 
-function spawnConfetti() {
-    const emojis = ['🧁', '🍰', '🍪', '🎂', '🥐', '🍩', '🥧', '☕', '🐀'];
-    for (let i = 0; i < 30; i++) {
-        const el = document.createElement('div');
-        el.className = 'confetti';
-        el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
-        el.style.left = Math.random() * 100 + 'vw';
-        el.style.animationDuration = (2 + Math.random() * 2) + 's';
-        el.style.animationDelay = Math.random() * 1 + 's';
-        document.body.appendChild(el);
-        setTimeout(() => el.remove(), 5000);
-    }
-}
+                const undoBtn = document.createElement('button');
+                undoBtn.className = 'btn btn-undo';
+                undoBtn.textContent = '↩️';
+                undoBtn.addEventListener('click', () => undoViolation(emp.name));
 
-async function addViolation(name) {
-    // Double-check lock state from Firebase before allowing
-    const snap = await db.ref('lockState').once('value');
-    if (snap.val() !== false) {
-        console.log('🐀 Nice try. The app is locked.');
-        return;
-    }
+                actions.appendChild(violateBtn);
+                actions.appendChild(undoBtn);
+                card.appendChild(actions);
+            }
 
-    violations[name] = (violations[name] || 0) + 1;
+            const status = document.createElement('div');
+            status.className = `status-text ${isDanger ? 'warning' : ''}`;
+            status.textContent = getStatusText(count);
+            card.appendChild(status);
 
-    if (violations[name] >= MAX_VIOLATIONS) {
-        const msg = SHAME_MESSAGES[Math.floor(Math.random() * SHAME_MESSAGES.length)];
-        document.getElementById('shameName').textContent = name;
-        document.getElementById('shameText').textContent = `${name} ${msg}`;
-        document.getElementById('modal').classList.add('active');
-
-        db.ref('shameLog').push({
-            name: name,
-            date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            grid.appendChild(card);
         });
-
-        violations[name] = 0;
-        spawnConfetti();
     }
 
-    db.ref('violations').update({ [name]: violations[name] });
-}
+    function renderShameLog() {
+        const logEl = document.getElementById('shameLog');
+        if (shameLog.length === 0) {
+            logEl.innerHTML = '<div class="empty-shame">No one has been shamed... yet. The Rat is watching.</div>';
+            return;
+        }
 
-async function undoViolation(name) {
-    // Double-check lock state from Firebase before allowing
-    const snap = await db.ref('lockState').once('value');
-    if (snap.val() !== false) {
-        console.log('🐀 Nice try. The app is locked.');
-        return;
+        logEl.innerHTML = shameLog.map(entry =>
+            `<div class="shame-entry">
+                <span class="entry-name">${entry.name}</span> was sentenced to bake duty
+                <span class="entry-date">(${entry.date})</span>
+            </div>`
+        ).reverse().join('');
     }
 
-    if (violations[name] > 0) {
-        violations[name]--;
+    function spawnConfetti() {
+        const emojis = ['🧁', '🍰', '🍪', '🎂', '🥐', '🍩', '🥧', '☕', '🐀'];
+        for (let i = 0; i < 30; i++) {
+            const el = document.createElement('div');
+            el.className = 'confetti';
+            el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            el.style.left = Math.random() * 100 + 'vw';
+            el.style.animationDuration = (2 + Math.random() * 2) + 's';
+            el.style.animationDelay = Math.random() * 1 + 's';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 5000);
+        }
+    }
+
+    async function addViolation(name) {
+        if (!VALID_NAMES.has(name)) return;
+        const snap = await db.ref('lockState').once('value');
+        if (snap.val() !== false) return;
+
+        violations[name] = (violations[name] || 0) + 1;
+
+        if (violations[name] >= MAX_VIOLATIONS) {
+            const msg = SHAME_MESSAGES[Math.floor(Math.random() * SHAME_MESSAGES.length)];
+            document.getElementById('shameName').textContent = name;
+            document.getElementById('shameText').textContent = `${name} ${msg}`;
+            document.getElementById('modal').classList.add('active');
+
+            db.ref('shameLog').push({
+                name: name,
+                date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+            });
+
+            violations[name] = 0;
+            spawnConfetti();
+        }
+
         db.ref('violations').update({ [name]: violations[name] });
     }
-}
 
-function dismissModal() {
-    document.getElementById('modal').classList.remove('active');
-}
+    async function undoViolation(name) {
+        if (!VALID_NAMES.has(name)) return;
+        const snap = await db.ref('lockState').once('value');
+        if (snap.val() !== false) return;
 
-function toggleLock() {
-    if (_lockState) {
-        document.getElementById('lockModal').classList.add('active');
-        document.getElementById('lockPassword').value = '';
-        document.getElementById('lockError').textContent = '';
-        setTimeout(() => document.getElementById('lockPassword').focus(), 100);
-    } else {
-        db.ref('lockState').set(true);
+        if (violations[name] > 0) {
+            violations[name]--;
+            db.ref('violations').update({ [name]: violations[name] });
+        }
     }
-}
 
-async function submitPassword() {
-    const input = document.getElementById('lockPassword').value;
-    const inputHash = await hashPassword(input);
-    if (inputHash === PASSWORD_HASH) {
-        db.ref('lockState').set(false);
-        document.getElementById('lockModal').classList.remove('active');
-    } else {
-        document.getElementById('lockError').textContent = 'Wrong password! The Rat denies you.';
-        document.getElementById('lockPassword').value = '';
-    }
-}
+    // Expose only what the HTML onclick handlers need — through a sealed proxy
+    const api = Object.freeze({
+        toggleLock() {
+            if (lockState) {
+                document.getElementById('lockModal').classList.add('active');
+                document.getElementById('lockPassword').value = '';
+                document.getElementById('lockError').textContent = '';
+                setTimeout(() => document.getElementById('lockPassword').focus(), 100);
+            } else {
+                db.ref().update({ lockState: true, unlockToken: null });
+            }
+        },
+        async submitPassword() {
+            const input = document.getElementById('lockPassword').value;
+            const inputHash = await hashPassword(input);
+            if (inputHash === PASSWORD_HASH) {
+                db.ref().update({ lockState: false, unlockToken: inputHash });
+                document.getElementById('lockModal').classList.remove('active');
+            } else {
+                document.getElementById('lockError').textContent = 'Wrong password! The Rat denies you.';
+                document.getElementById('lockPassword').value = '';
+            }
+        },
+        dismissModal() {
+            document.getElementById('modal').classList.remove('active');
+        }
+    });
 
-// Initial render (Firebase listeners will update once data loads)
-renderCards();
-renderShameLog();
+    // Bind HTML handlers through frozen window properties
+    Object.defineProperty(window, 'toggleLock', { value: api.toggleLock, writable: false, configurable: false });
+    Object.defineProperty(window, 'submitPassword', { value: api.submitPassword, writable: false, configurable: false });
+    Object.defineProperty(window, 'dismissModal', { value: api.dismissModal, writable: false, configurable: false });
+
+    // Prevent adding addViolation/undoViolation to window
+    Object.defineProperty(window, 'addViolation', { get() { console.log('🐀 The Rat is not amused.'); return () => {}; }, configurable: false });
+    Object.defineProperty(window, 'undoViolation', { get() { console.log('🐀 The Rat is not amused.'); return () => {}; }, configurable: false });
+
+    renderCards();
+    renderShameLog();
+})();
 </script>
 
 </body>
