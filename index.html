@@ -596,10 +596,8 @@
     }
 
     // Real-time listeners
+    // Lock state is now local-only — based on whether this session has the auth token
     db.ref('lockState').on('value', (snapshot) => {
-        const val = snapshot.val();
-        lockState = val === null ? true : val;
-        document.getElementById('lockBtn').textContent = lockState ? '🔒' : '🔓';
         renderCards();
     });
 
@@ -657,7 +655,7 @@
             meter.innerHTML = cups;
             card.appendChild(meter);
 
-            if (!lockState) {
+            if (currentAuthToken) {
                 const actions = document.createElement('div');
                 actions.className = 'card-actions';
 
@@ -780,14 +778,15 @@
     // Expose only what the HTML onclick handlers need — through a sealed proxy
     const api = Object.freeze({
         toggleLock() {
-            if (lockState) {
+            if (!currentAuthToken) {
                 document.getElementById('lockModal').classList.add('active');
                 document.getElementById('lockPassword').value = '';
                 document.getElementById('lockError').textContent = '';
                 setTimeout(() => document.getElementById('lockPassword').focus(), 100);
             } else {
                 currentAuthToken = null;
-                db.ref().update({ lockState: true, unlockToken: null });
+                document.getElementById('lockBtn').textContent = '🔒';
+                renderCards();
             }
         },
         async submitPassword() {
@@ -798,7 +797,9 @@
                 // If wrong hash, the write is REJECTED by the server
                 await db.ref().update({ lockState: false, unlockToken: inputHash });
                 currentAuthToken = inputHash;
+                document.getElementById('lockBtn').textContent = '🔓';
                 document.getElementById('lockModal').classList.remove('active');
+                renderCards();
             } catch (e) {
                 document.getElementById('lockError').textContent = 'Wrong password! The Rat denies you.';
                 document.getElementById('lockPassword').value = '';
