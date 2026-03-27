@@ -120,6 +120,17 @@
             font-family: 'Permanent Marker', cursive;
             font-size: 1.4rem;
             color: #eee;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #667eea;
         }
 
         .violation-count {
@@ -513,19 +524,19 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 const EMPLOYEES = [
-    { name: "Jacob", emoji: "👔" },
-    { name: "Harry", emoji: "🎩" },
-    { name: "Iona", emoji: "🌸" },
-    { name: "Amber", emoji: "💎" },
-    { name: "Louise", emoji: "🦋" },
-    { name: "Mike", emoji: "🎸" },
-    { name: "Dan", emoji: "🏋️" },
-    { name: "Seb", emoji: "🎯" },
-    { name: "Oli", emoji: "🦊" },
-    { name: "Charlie", emoji: "🐕" },
-    { name: "Ergert", emoji: "🐀" },
-    { name: "Berners", emoji: "🧠" },
-    { name: "Hoyon", emoji: "⚡" },
+    { name: "Jacob", img: "jacob.png" },
+    { name: "Harry", img: "harry.png" },
+    { name: "Iona", img: "iona.png" },
+    { name: "Amber", img: "amber.png" },
+    { name: "Louise", img: "louise.png" },
+    { name: "Mike", img: "mike.png" },
+    { name: "Dan", img: "dan.png" },
+    { name: "Seb", img: "seb.png" },
+    { name: "Oli", img: "oli.png" },
+    { name: "Charlie", img: "charlie.png" },
+    { name: "Ergert", img: "ergert.png" },
+    { name: "Berners", img: "berners.png" },
+    { name: "Hoyon", img: "hoyon.png" },
 ];
 
 const MAX_VIOLATIONS = 5;
@@ -626,7 +637,7 @@ function renderCards() {
 
         card.innerHTML = `
             <div class="card-header">
-                <span class="card-name">${emp.emoji} ${emp.name}</span>
+                <span class="card-name"><img class="avatar" src="${emp.img}" alt="${emp.name}"> ${emp.name}</span>
                 <span class="violation-count">${count}/${MAX_VIOLATIONS}</span>
             </div>
             <div class="cup-meter">${cups}</div>
