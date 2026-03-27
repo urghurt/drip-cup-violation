@@ -546,7 +546,8 @@ const WARNING_MESSAGES = [
     "Better preheat that oven...",
 ];
 
-const PASSWORD_HASH = '94cd50da0c938ab22c04e3daaf4dd5363eada6544d1914842888c2662041ee0f';
+const PASSWORD_SALT = 'drip-cup-rat-2026';
+const PASSWORD_HASH = 'a55e0122e0acd37cddacfc16579383aa3f7b0f429e8cfeac24ef3ad6256e867b';
 
 // Lock state lives in Firebase — no local variable to tamper with
 let _lockState = true;
@@ -561,7 +562,7 @@ Object.defineProperty(window, 'isLocked', {
 // Hash function
 async function hashPassword(password) {
     const encoder = new TextEncoder();
-    const data = encoder.encode(password);
+    const data = encoder.encode(PASSWORD_SALT + password);
     const hashBuffer = await crypto.subtle.digest('SHA-256', data);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
