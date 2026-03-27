@@ -926,6 +926,7 @@
                 currentAuthToken = null;
                 document.getElementById('lockBtn').textContent = '🔒';
                 renderCards();
+                renderShameLog();
             }
         },
         async submitPassword() {
@@ -939,6 +940,7 @@
                 document.getElementById('lockBtn').textContent = '🔓';
                 document.getElementById('lockModal').classList.remove('active');
                 renderCards();
+                renderShameLog();
             } catch (e) {
                 document.getElementById('lockError').textContent = 'Wrong password! The Rat denies you.';
                 document.getElementById('lockPassword').value = '';
