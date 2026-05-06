@@ -860,7 +860,12 @@
     // Authenticated write helper — writeAuth stays set while unlocked
     async function authWrite(updates) {
         if (!currentAuthToken) return;
-        await db.ref().update(updates);
+        try {
+            await db.ref().update(updates);
+        } catch(e) {
+            console.error('🐀 Write failed:', e.message, 'Updates:', JSON.stringify(updates));
+            throw e;
+        }
     }
 
     async function addViolation(name) {
