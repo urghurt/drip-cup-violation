@@ -857,13 +857,10 @@
     // Stored in memory only — never exposed, never in source
     let currentAuthToken = null;
 
-    // Authenticated write helper — sets writeAuth, performs write, then clears writeAuth
+    // Authenticated write helper — writeAuth stays set while unlocked
     async function authWrite(updates) {
         if (!currentAuthToken) return;
-        updates.writeAuth = currentAuthToken;
         await db.ref().update(updates);
-        // Immediately clear writeAuth so it can't be reused by unauthenticated writes
-        try { await db.ref('writeAuth').set(null); } catch(e) {}
     }
 
     async function addViolation(name) {
@@ -929,6 +926,8 @@
                 setTimeout(() => document.getElementById('lockPassword').focus(), 100);
             } else {
                 currentAuthToken = null;
+                // Clear writeAuth in Firebase so no unauthenticated writes can happen
+                try { db.ref().update({ lockState: true, writeAuth: null }); } catch(e) {}
                 document.getElementById('lockBtn').textContent = '🔒';
                 renderCards();
                 renderShameLog();
@@ -940,7 +939,7 @@
             try {
                 // Firebase rules validate the hash server-side
                 // If wrong hash, the write is REJECTED by the server
-                await db.ref().update({ lockState: false, unlockToken: inputHash });
+                await db.ref().update({ lockState: false, unlockToken: inputHash, writeAuth: inputHash });
                 currentAuthToken = inputHash;
                 document.getElementById('lockBtn').textContent = '🔓';
                 document.getElementById('lockModal').classList.remove('active');
